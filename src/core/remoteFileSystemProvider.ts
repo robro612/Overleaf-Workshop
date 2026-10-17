@@ -536,6 +536,7 @@ export class VirtualFileSystem extends vscode.Disposable {
                         // if doc dirty, local cache should diverge from remote cache
                         if (_doc && !_doc.isDirty) {doc.localCache = content;}
                         doc.remoteCache = content;
+                        EventBus.fire('docUpdateAppliedEvent', {docId: doc._id, ops: update.op});
                         this.isDirty = true;
                         this.notify([
                             {type: vscode.FileChangeType.Changed, uri: this.pathToUri(res.path)}
@@ -624,6 +625,7 @@ export class VirtualFileSystem extends vscode.Disposable {
                 doc.version = res.version;
                 doc.remoteCache = content;
                 doc.localCache  = content;
+                EventBus.fire('docRangesLoadedEvent', {docId: doc._id, ranges: res.ranges || {}});
                 EventBus.fire('fileWillOpenEvent', {uri});
                 return new TextEncoder().encode(content);
             }
@@ -882,6 +884,9 @@ export class VirtualFileSystem extends vscode.Disposable {
             await this.socket.applyOtUpdate(doc._id, update);
             doc.localCache = mergeRes;
             doc.remoteCache = mergeRes;
+            if (update.op?.length) {
+                EventBus.fire('docUpdateAppliedEvent', {docId: doc._id, ops: update.op});
+            }
             setTimeout(() => {
                 this.notify([
                     {type: vscode.FileChangeType.Changed, uri: uri}
@@ -1308,6 +1313,83 @@ export class VirtualFileSystem extends vscode.Disposable {
         } else {
             return false;
         }
+    }
+
+    async getAllCommentThreads() {
+        const identity = await GlobalStateManager.authenticate(this.context, this.serverName);
+        const [rangesRes, threadsRes] = await Promise.all([
+            (this.api as ExtendedBaseAPI).getAllDocumentRanges(identity, this.projectId),
+            (this.api as ExtendedBaseAPI).getAllCommentThreads(identity, this.projectId),
+        ]);
+        if (rangesRes.type==='success' && threadsRes.type==='success') {
+            return {ranges: rangesRes.ranges, threads: threadsRes.threads};
+        }
+        return undefined;
+    }
+
+    /**
+     * Create a comment thread on the remote document, where `position` is an offset into `remoteCache`.
+     */
+    async createCommentThread(docId: string, threadId: string, position: number, quotedText: string, content: string) {
+        const doc = this._resolveById(docId)?.fileEntity as DocumentEntity | undefined;
+        if (doc?.version===undefined || doc.remoteCache===undefined) {
+            throw new Error( vscode.l10n.t('The document is not synchronized yet.') );
+        }
+        // wait for the acknowledgement of the last local update, so that `doc.version` is up to date
+        for (let i=0; i<50 && doc.lastVersion!==undefined && doc.version<=doc.lastVersion; i++) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        // the server rejects (and disconnects) comment ops whose text does not match the document
+        if (doc.remoteCache.slice(position, position+quotedText.length)!==quotedText) {
+            throw new Error( vscode.l10n.t('The document has changed, please try again.') );
+        }
+
+        if (!await this.postCommentThreadMessage(threadId, content)) {
+            return false;
+        }
+        await this.socket.applyOtUpdate(docId, {
+            doc: docId,
+            v: doc.version,
+            op: [{ c:quotedText, p:position, t:threadId }],
+        });
+        doc.lastVersion = doc.version;
+        return true;
+    }
+
+    async postCommentThreadMessage(threadId: string, content: string) {
+        const identity = await GlobalStateManager.authenticate(this.context, this.serverName);
+        const res = await (this.api as ExtendedBaseAPI).postCommentThreadMessage(identity, this.projectId, threadId, content);
+        return res.type==='success';
+    }
+
+    async editCommentThreadMessage(threadId: string, messageId: string, content: string) {
+        const identity = await GlobalStateManager.authenticate(this.context, this.serverName);
+        const res = await (this.api as ExtendedBaseAPI).editCommentThreadMessage(identity, this.projectId, threadId, messageId, content);
+        return res.type==='success';
+    }
+
+    async deleteCommentThreadMessage(threadId: string, messageId: string) {
+        const identity = await GlobalStateManager.authenticate(this.context, this.serverName);
+        const res = await (this.api as ExtendedBaseAPI).deleteCommentThreadMessage(identity, this.projectId, threadId, messageId);
+        return res.type==='success';
+    }
+
+    async resolveCommentThread(docId: string, threadId: string) {
+        const identity = await GlobalStateManager.authenticate(this.context, this.serverName);
+        const res = await (this.api as ExtendedBaseAPI).resolveCommentThread(identity, this.projectId, docId, threadId);
+        return res.type==='success';
+    }
+
+    async reopenResolvedCommentThread(docId: string, threadId: string) {
+        const identity = await GlobalStateManager.authenticate(this.context, this.serverName);
+        const res = await (this.api as ExtendedBaseAPI).reopenResolvedCommentThread(identity, this.projectId, docId, threadId);
+        return res.type==='success';
+    }
+
+    async deleteCommentThread(docId: string, threadId: string) {
+        const identity = await GlobalStateManager.authenticate(this.context, this.serverName);
+        const res = await (this.api as ExtendedBaseAPI).deleteCommentThread(identity, this.projectId, docId, threadId);
+        return res.type==='success';
     }
 }
 

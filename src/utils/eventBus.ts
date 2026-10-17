@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import {EventEmitter} from 'events';
 import { PdfDocument } from '../core/pdfViewEditorProvider';
 import { StatusInfo } from '../scm';
+import { UpdateSchema } from '../api/socketio';
+import { DocumentRangesSchema } from '../api/extendedBase';
 
 export type Events = {
     'fileWillOpenEvent': {uri: vscode.Uri},
@@ -11,6 +13,8 @@ export type Events = {
     'rootDocUpdateEvent': {rootDocId:string},
     'scmStatusChangeEvent': {status:StatusInfo},
     'socketioConnectedEvent': {publicId:string},
+    'docRangesLoadedEvent': {docId:string, ranges:DocumentRangesSchema},
+    'docUpdateAppliedEvent': {docId:string, ops:NonNullable<UpdateSchema['op']>},
 };
 
 export class EventBus {

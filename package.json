@@ -393,9 +393,77 @@
         "title": "%commands.collaboration.jumpToUser.title%",
         "enablement": "resourceScheme == overleaf-workshop || overleaf-workshop.activate",
         "category": "%extension.displayName%"
+      },
+      {
+        "command": "overleaf-workshop.collaboration.addComment",
+        "title": "%commands.collaboration.addComment.title%",
+        "enablement": "resourceScheme == overleaf-workshop",
+        "icon": "$(comment)",
+        "category": "%extension.displayName%"
+      },
+      {
+        "command": "overleaf-workshop.review.createThread",
+        "title": "%commands.review.createThread.title%",
+        "category": "%extension.displayName%"
+      },
+      {
+        "command": "overleaf-workshop.review.cancelThread",
+        "title": "%commands.review.cancelThread.title%",
+        "category": "%extension.displayName%"
+      },
+      {
+        "command": "overleaf-workshop.review.reply",
+        "title": "%commands.review.reply.title%",
+        "category": "%extension.displayName%"
+      },
+      {
+        "command": "overleaf-workshop.review.resolveThread",
+        "title": "%commands.review.resolveThread.title%",
+        "icon": "$(check)",
+        "category": "%extension.displayName%"
+      },
+      {
+        "command": "overleaf-workshop.review.reopenThread",
+        "title": "%commands.review.reopenThread.title%",
+        "icon": "$(issue-reopened)",
+        "category": "%extension.displayName%"
+      },
+      {
+        "command": "overleaf-workshop.review.deleteThread",
+        "title": "%commands.review.deleteThread.title%",
+        "icon": "$(trash)",
+        "category": "%extension.displayName%"
+      },
+      {
+        "command": "overleaf-workshop.review.editMessage",
+        "title": "%commands.review.editMessage.title%",
+        "icon": "$(edit)",
+        "category": "%extension.displayName%"
+      },
+      {
+        "command": "overleaf-workshop.review.deleteMessage",
+        "title": "%commands.review.deleteMessage.title%",
+        "icon": "$(trash)",
+        "category": "%extension.displayName%"
+      },
+      {
+        "command": "overleaf-workshop.review.saveMessage",
+        "title": "%commands.review.saveMessage.title%",
+        "category": "%extension.displayName%"
+      },
+      {
+        "command": "overleaf-workshop.review.cancelEditMessage",
+        "title": "%commands.review.cancelEditMessage.title%",
+        "category": "%extension.displayName%"
       }
     ],
     "keybindings": [
+      {
+        "key": "ctrl+alt+m",
+        "mac": "cmd+alt+m",
+        "command": "overleaf-workshop.collaboration.addComment",
+        "when": "editorTextFocus && resourceScheme == overleaf-workshop"
+      },
       {
         "key": "ctrl+alt+b",
         "mac": "cmd+alt+b",
@@ -571,6 +639,48 @@
       ]
     },
     "menus": {
+      "commandPalette": [
+        {
+          "command": "overleaf-workshop.review.createThread",
+          "when": "false"
+        },
+        {
+          "command": "overleaf-workshop.review.cancelThread",
+          "when": "false"
+        },
+        {
+          "command": "overleaf-workshop.review.reply",
+          "when": "false"
+        },
+        {
+          "command": "overleaf-workshop.review.resolveThread",
+          "when": "false"
+        },
+        {
+          "command": "overleaf-workshop.review.reopenThread",
+          "when": "false"
+        },
+        {
+          "command": "overleaf-workshop.review.deleteThread",
+          "when": "false"
+        },
+        {
+          "command": "overleaf-workshop.review.editMessage",
+          "when": "false"
+        },
+        {
+          "command": "overleaf-workshop.review.deleteMessage",
+          "when": "false"
+        },
+        {
+          "command": "overleaf-workshop.review.saveMessage",
+          "when": "false"
+        },
+        {
+          "command": "overleaf-workshop.review.cancelEditMessage",
+          "when": "false"
+        }
+      ],
       "explorer/context": [
         {
           "command": "overleaf-workshop.remoteFileSystem.refreshLinkedFile",
@@ -589,6 +699,68 @@
         {
           "command": "overleaf-workshop.collaboration.insertLineRef",
           "when": "resourceScheme == overleaf-workshop || overleaf-workshop.activate"
+        },
+        {
+          "command": "overleaf-workshop.collaboration.addComment",
+          "when": "resourceScheme == overleaf-workshop"
+        }
+      ],
+      "comments/commentThread/context": [
+        {
+          "command": "overleaf-workshop.review.cancelThread",
+          "group": "inline@2",
+          "when": "commentController == overleaf-workshop-review && commentThreadIsEmpty"
+        },
+        {
+          "command": "overleaf-workshop.review.createThread",
+          "group": "inline@1",
+          "when": "commentController == overleaf-workshop-review && commentThreadIsEmpty"
+        },
+        {
+          "command": "overleaf-workshop.review.reply",
+          "group": "inline",
+          "when": "commentController == overleaf-workshop-review && !commentThreadIsEmpty"
+        }
+      ],
+      "comments/commentThread/title": [
+        {
+          "command": "overleaf-workshop.review.resolveThread",
+          "group": "inline@1",
+          "when": "commentController == overleaf-workshop-review && commentThread == unresolved"
+        },
+        {
+          "command": "overleaf-workshop.review.reopenThread",
+          "group": "inline@1",
+          "when": "commentController == overleaf-workshop-review && commentThread == resolved"
+        },
+        {
+          "command": "overleaf-workshop.review.deleteThread",
+          "group": "inline@2",
+          "when": "commentController == overleaf-workshop-review && commentThread =~ /^(un)?resolved$/"
+        }
+      ],
+      "comments/comment/title": [
+        {
+          "command": "overleaf-workshop.review.editMessage",
+          "group": "inline@1",
+          "when": "commentController == overleaf-workshop-review && comment =~ /^own/"
+        },
+        {
+          "command": "overleaf-workshop.review.deleteMessage",
+          "group": "inline@2",
+          "when": "commentController == overleaf-workshop-review && comment == own"
+        }
+      ],
+      "comments/comment/context": [
+        {
+          "command": "overleaf-workshop.review.cancelEditMessage",
+          "group": "inline@2",
+          "when": "commentController == overleaf-workshop-review"
+        },
+        {
+          "command": "overleaf-workshop.review.saveMessage",
+          "group": "inline@1",
+          "when": "commentController == overleaf-workshop-review"
         }
       ],
       "view/title": [
@@ -614,6 +786,11 @@
         }
       ],
       "editor/title": [
+        {
+          "command": "overleaf-workshop.collaboration.addComment",
+          "when": "resourceScheme == overleaf-workshop && activeEditor == workbench.editors.files.textFileEditor",
+          "group": "navigation@0"
+        },
         {
           "command": "overleaf-workshop.compileManager.compile",
           "when": "(resourceScheme == overleaf-workshop || overleaf-workshop.activateCompile) && resourceExtname == .tex",

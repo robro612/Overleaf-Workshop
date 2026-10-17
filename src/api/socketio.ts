@@ -3,6 +3,7 @@ import { Identity, BaseAPI, ProjectMessageResponseSchema } from './base';
 import { FileEntity, DocumentEntity, FileRefEntity, FileType, FolderEntity, ProjectEntity } from '../core/remoteFileSystemProvider';
 import { EventBus } from '../utils/eventBus';
 import { SocketIOAlt } from './socketioAlt';
+import { CommentThreadMessageSchema, CommentUserSchema, DocumentRangesSchema } from './extendedBase';
 
 function decodePackedUtf8(text: string): string {
     return Buffer.from(text, 'latin1').toString('utf-8');
@@ -42,6 +43,8 @@ export interface UpdateSchema {
         i?: string, //insert
         d?: string, //delete
         u?: boolean, //isUndo
+        c?: string, //quoted text of comment
+        t?: string, //thread id of comment
     }[],
     v: number, //doc version number
     lastV?: number, //last version number
@@ -70,6 +73,13 @@ export interface EventsHandler {
     onSpellCheckLanguageUpdated?: (language:string) => void,
     onCompilerUpdated?: (compiler:string) => void,
     onRootDocUpdated?: (rootDocId:string) => void,
+    //
+    onCommentThreadResolved?: (threadId:string, user:CommentUserSchema) => void,
+    onCommentThreadReopened?: (threadId:string) => void,
+    onCommentThreadDeleted?: (threadId:string) => void,
+    onCommentThreadMessageCreated?: (threadId:string, message:CommentThreadMessageSchema) => void,
+    onCommentThreadMessageEdited?: (threadId:string, messageId:string, content:string) => void,
+    onCommentThreadMessageDeleted?: (threadId:string, messageId:string) => void,
 }
 
 type ConnectionScheme = 'Alt' | 'v1' | 'v2';
@@ -321,6 +331,36 @@ export class SocketIOAPI {
                         handler(rootDocId);
                     });
                     break;
+                case handlers.onCommentThreadResolved:
+                    this.socket.on('resolve-thread', (threadId:string, user:CommentUserSchema) => {
+                        handler(threadId, user);
+                    });
+                    break;
+                case handlers.onCommentThreadReopened:
+                    this.socket.on('reopen-thread', (threadId:string) => {
+                        handler(threadId);
+                    });
+                    break;
+                case handlers.onCommentThreadDeleted:
+                    this.socket.on('delete-thread', (threadId:string) => {
+                        handler(threadId);
+                    });
+                    break;
+                case handlers.onCommentThreadMessageCreated:
+                    this.socket.on('new-comment', (threadId:string, message:CommentThreadMessageSchema) => {
+                        handler(threadId, message);
+                    });
+                    break;
+                case handlers.onCommentThreadMessageEdited:
+                    this.socket.on('edit-message', (threadId:string, messageId:string, content:string) => {
+                        handler(threadId, messageId, content);
+                    });
+                    break;
+                case handlers.onCommentThreadMessageDeleted:
+                    this.socket.on('delete-message', (threadId:string, messageId:string) => {
+                        handler(threadId, messageId);
+                    });
+                    break;
                 default:
                     break;
             }
@@ -382,9 +422,17 @@ export class SocketIOAPI {
      */
     async joinDoc(docId:string) {
         return this.emit('joinDoc', docId, { encodeRanges: true })
-            .then((returns: [Array<string>, number, Array<any>, any]) => {
+            .then((returns: [Array<string>, number, Array<any>, DocumentRangesSchema|undefined]) => {
                 const [docLinesAscii, version, updates, ranges] = returns;
                 const docLines = docLinesAscii.map((line) => decodePackedUtf8(line));
+                // `encodeRanges` packs range text the same way as `docLines` (positions are unaffected)
+                ranges?.comments?.forEach((comment) => {
+                    if (comment.op.c) { comment.op.c = decodePackedUtf8(comment.op.c); }
+                });
+                ranges?.changes?.forEach((change) => {
+                    if (change.op.i) { change.op.i = decodePackedUtf8(change.op.i); }
+                    if (change.op.d) { change.op.d = decodePackedUtf8(change.op.d); }
+                });
                 return {docLines, version, updates, ranges};
             });
     }

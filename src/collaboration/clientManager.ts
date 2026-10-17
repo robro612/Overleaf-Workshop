@@ -4,6 +4,7 @@ import { ELEGANT_NAME, ROOT_NAME } from '../consts';
 import { SocketIOAPI, UpdateUserSchema } from '../api/socketio';
 import { VirtualFileSystem } from '../core/remoteFileSystemProvider';
 import { ChatViewProvider } from './chatViewProvider';
+import { ReviewCommentProvider } from './reviewCommentProvider';
 import { LocalReplicaSCMProvider } from '../scm/localReplicaSCM';
 
 interface ExtendedUpdateUserSchema extends UpdateUserSchema {
@@ -59,6 +60,7 @@ export class ClientManager {
     private readonly onlineUsers: {[K:string]:ExtendedUpdateUserSchema} = {};
     private connectedFlag: boolean = true;
     private readonly chatViewer: ChatViewProvider;
+    private readonly reviewComments: ReviewCommentProvider;
     /** Timestamp when connection was lost; used for grace period before clearing user list */
     private disconnectedAt: number = 0;
     /** Grace period in ms before clearing online user list on disconnect */
@@ -107,6 +109,7 @@ export class ClientManager {
         });
 
         this.chatViewer = new ChatViewProvider(this.vfs, this.publicId, this.context.extensionUri, this.socket);
+        this.reviewComments = new ReviewCommentProvider(this.vfs, this.socket);
         this.status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
         this.updateStatus();
     }
@@ -396,6 +399,8 @@ export class ClientManager {
             }),
             // register chat view provider
             ...this.chatViewer.triggers,
+            // register review comment provider
+            ...this.reviewComments.triggers,
             // update this client's position
             vscode.window.onDidChangeTextEditorSelection(async e => {
                 if (e.kind===undefined) { return; }
